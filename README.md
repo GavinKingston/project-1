@@ -13,3 +13,16 @@ This tool will take in a user input with a ticker symbol of a stock and it will 
 * What is the best time to buy, and what is the best time to sell
 * what is the overall trend of the stock ticker symbol
 * What month, day, time is the best time to buy or sell the stock. 
+
+### Requirements
+* Install Python [here](https://www.python.org/downloads/)
+* Install Python Libraries (instructions listed below)
+* Javascript enabled web browser
+
+### Instructions
+* Download the code
+* Navigate into the parent directory of the source code using terminal
+* Run the following command in terminal to install the required python libraries and run the program
+```
+pip install -r requirements.txt && streamlit run main.py
+```
