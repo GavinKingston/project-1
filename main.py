@@ -43,12 +43,24 @@ if st.button('Analyze Tickers'):
                                                             freq=config_freq, 
                                                             include_history=True)
                 
+                # Rob - Finish the Prophet Forecasting Model and display the forecast
+                # Rob - Add forecast components to the streamlit app
+                
                 # Show forst 5 rows of data & displays ticker symbol
                 st.write(f"Ticker symbol: {ticker_symbol}")
                 st.table(ticker_history.head())
 
                 # Plot the close data on a line chart
                 st.line_chart(ticker_history['Close'])
+
+                # Jamie - Add Candlestick Chart using plotly and streamlit
+                # Jamie - Add Bollinger Bands using plotly and streamlit
+
+                # David - Add MACD Indicator using plotly and streamlit
+                # David - Add additional tabs into streamlit to show more information
+
+                # Gavin - Add RSI Indicator using plotly and streamlit
+                # Gavin - Add Correlation Matrix using plotly and streamlit
 
             # Handle exceptions from the Yahoo Finance API
             except Exception as e:
