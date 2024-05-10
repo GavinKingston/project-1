@@ -26,6 +26,24 @@ if st.button('Analyze Tickers'):
                 ticker = yf.Ticker(ticker_symbol)
                 ticker_info = ticker.info
                 ticker_history = ticker.history(period=ticker_frequency)
+
+                # Formatting data to work with Prophet Forcasting Model
+                prophet_df = ticker_history[['Close']]
+                prophet_df.reset_index()
+                prophet_df.columns = ['ds', 'y']
+                
+                # Building Prophet Model and fitting the data
+                prophet = Prophet()
+                prophet.fit(prophet_df)
+
+                # Building Forecast DataFrame
+                config_period = 10
+                config_freq = "D"
+                forecast_df = prophet.make_future_dataframe(periods=config_period, 
+                                                            freq=config_freq, 
+                                                            include_history=True)
+                
+                # Show forst 5 rows of data & displays ticker symbol
                 st.write(f"Ticker symbol: {ticker_symbol}")
                 st.table(ticker_history.head())
 
