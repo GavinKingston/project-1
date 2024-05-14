@@ -4,9 +4,9 @@ import pandas as pd
 from datetime import datetime
 import streamlit as st
 
-ticker_data = yf.Ticker('META')
+ticker_data = yf.Ticker('SPY')
 ticker_history = ticker_data.history(
-    period='1d', start='2024-01-01', end='2024-05-10')
+    period='90d', interval='1d')
 
 fig = go.Figure(data=[go.Candlestick(x=ticker_history.index,
                                      open=ticker_history['Open'],
@@ -38,7 +38,7 @@ fig1.add_trace(go.Scatter(x=ticker_history.index,
 fig1.add_trace(go.Scatter(x=ticker_history.index,
                y=ticker_history['UB'], mode='lines', name='Upper Bollinger Band', line=dict(color='red')))
 fig1.add_trace(go.Scatter(x=ticker_history.index,
-               y=ticker_history['LB'], fill='tonexty', mode='lines', name='Lower Bollinger Band', line=dict(color='green')))
+               y=ticker_history['LB'], fill='tonexty', mode='lines', name='Lower Bollinger Band', line=dict(color='indigo')))
 
 # Add the Middle Bollinger Band (MA)
 fig1.add_trace(go.Scatter(x=ticker_history.index,
