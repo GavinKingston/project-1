@@ -1,9 +1,27 @@
 import yfinance as yf
 import pandas as pd
+import plotly.graph_objs as go
 from prophet import Prophet
 import streamlit as st
 import plotly.graph_objects as go
 import pandas_ta as ta
+
+def calculate_rsi(data, window=14):
+    delta = data.diff()
+    gain = (delta.where(delta > 0, 0)).rolling(window=window).mean()
+    loss = (-delta.where(delta < 0, 0)).rolling(window=window).mean()
+
+    rs = gain / loss
+    rsi = 100 - (100 / (1 + rs))
+    return rsi
+
+def plot_rsi(rsi):
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(y=rsi, mode='lines', name='RSI'))
+    fig.update_layout(title='RSI over time',
+                      yaxis_title='RSI',
+                      xaxis_title='Date')
+    return fig
 
 # Set page title and subheader
 st.title('Stock Market Analysis Tool')
@@ -207,4 +225,10 @@ with tabs[2]:
     # # Display the chart
     # st.plotly_chart(fig)
 
+                # Gavin - Add RSI Indicator using plotly and streamlit
+                rsi = calculate_rsi(ticker_history)
+                st.write(f"RSI: {rsi}")
+                fig = plot_rsi(rsi)
+                st.plotly_chart(fig, use_container_width=True)
+                # Gavin - Add Correlation Matrix using plotly and streamlit
 
