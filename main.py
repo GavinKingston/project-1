@@ -3,208 +3,256 @@ import pandas as pd
 import plotly.graph_objs as go
 from prophet import Prophet
 import streamlit as st
-import plotly.graph_objects as go
-import pandas_ta as ta
+# import pandas_ta as ta
 
-def calculate_rsi(data, window=14):
-    delta = data.diff()
-    gain = (delta.where(delta > 0, 0)).rolling(window=window).mean()
-    loss = (-delta.where(delta < 0, 0)).rolling(window=window).mean()
+# def calculate_rsi(data, window=14):
+#     delta = data.diff()
+#     gain = (delta.where(delta > 0, 0)).rolling(window=window).mean()
+#     loss = (-delta.where(delta < 0, 0)).rolling(window=window).mean()
 
-    rs = gain / loss
-    rsi = 100 - (100 / (1 + rs))
-    return rsi
+#     rs = gain / loss
+#     rsi = 100 - (100 / (1 + rs))
+#     return rsi
 
-def plot_rsi(rsi):
-    fig = go.Figure()
-    fig.add_trace(go.Scatter(y=rsi, mode='lines', name='RSI'))
-    fig.update_layout(title='RSI over time',
-                      yaxis_title='RSI',
-                      xaxis_title='Date')
-    return fig
+# def plot_rsi(rsi):
+#     fig = go.Figure()
+#     fig.add_trace(go.Scatter(y=rsi, mode='lines', name='RSI'))
+#     fig.update_layout(title='RSI over time',
+#                       yaxis_title='RSI',
+#                       xaxis_title='Date')
+#     return fig
+
+def get_research_tool_tab_data(ticker_list):
+    for research_symbol in ticker_list:
+
+        # Strip Whitespace Off Ticker Symbol
+        research_symbol = research_symbol.strip()
+        try:
+            ticker_value = yf.Ticker(research_symbol)
+            ticker_name = ticker_value.info["longName"]
+
+            # Make header for stock analyst recommendations and call corresponding function
+            st.header(f"Stock analyst recommendations: {ticker_name}(past 3 months)")
+            recommend = ticker_value.recommendations
+            # Use dictionary to rename dataframe with new column names
+            new_column_names = {
+                "strongBuy": "Strong Buy",
+                "buy": "Buy",
+                "hold": "Hold",
+                "sell": "Sell",
+                "strongSell": "Strong Sell"
+            }
+            recommend_new = recommend.rename(columns=new_column_names)
+            recommend_new_t = recommend_new.transpose()
+            recommend_new_t = recommend_new_t.drop("period", axis=0)
+            recommend_new_total = recommend_new_t.sum(axis=1)
+            recommend_new_total = recommend_new_total.reset_index()
+            recommend_new_total = recommend_new_total.rename(columns=
+                                                                {"index": "labels",
+                                                                0 : "values"})
+
+            # Assign the pie chart labels, values, and colors
+            colors = ["darkgreen", "green", "gold", "red", "darkred"]
+            pie = go.Pie(labels=recommend_new_total["labels"], values=recommend_new_total["values"], marker=dict(colors=colors))
+
+            # Create the figure and add the trace
+            fig = go.Figure(pie)
+
+            # Display the pie chart in Streamlit
+            st.plotly_chart(fig)
+
+            # Make header for income statement and call corresponding function
+            st.header(f"Income statement: {ticker_name}")
+            income_stmt = ticker_value.income_stmt
+            # Transpose data frame and create visualization
+            income_stmt_t = income_stmt.transpose()
+            st.line_chart(income_stmt_t[["Total Revenue", "Net Income", "Gross Profit", "EBITDA"]])
+            
+            # Make header for balance sheet and call corresponding function
+            st.header(f"Balance sheet: {ticker_name}")
+            balance_sheet = ticker_value.balance_sheet
+            # Transpose data frame and create visualization
+            balance_sheet_t = balance_sheet.transpose()
+            st.line_chart(balance_sheet_t[["Total Assets", "Total Liabilities Net Minority Interest", "Stockholders Equity", "Long Term Debt"]])
+            
+            # Make header for cash flow statement and call corresponding function
+            st.header(f"Cash flow statement: {ticker_name}")
+            cashflow = ticker_value.cashflow
+            # Transpose data frame and create visualization
+            cashflow_t = cashflow.transpose()
+            st.line_chart(cashflow_t[["Free Cash Flow", "Operating Cash Flow", "Issuance Of Debt", "Net Income From Continuing Operations"]])
+            
+            # Make header for stock ticker news and call corresponding function
+            st.header(f"Recent news articles mentioning {ticker_name}")
+            article_list = ticker_value.news
+            links_and_titles = [(item["link"], item["title"]) for item in article_list]
+
+            # Display the extracted links and titles
+            for link, title in links_and_titles:
+                st.link_button(title, link)
+
+        # Handle exceptions from the Yahoo Finance API
+        except Exception as e:
+            st.error(f"Could not retrieve data for ticker symbol: {research_symbol}. Error: {e}")
+
 
 # Set page title and subheader
 st.title('Stock Market Analysis Tool')
 st.subheader('This tool will allow you to analyze stock market data for any ticker symbol you input.')
 
-# Create tabs
-tab_titles = ["Stock Prediction", "Research Tool", "Market Trends"]
-tabs = st.tabs(tab_titles)
 
-# Add content to the User Input Tool tab
-with tabs[0]:
-    # User input for ticker symbols
-    ticker_input = st.text_input("Enter ticker symbols to analyze (separated by commas):")
-    ticker_frequency = st.selectbox("Select the data frequency:",
-        ['1d', '5d', '1mo', '3mo', '6mo', '1y', '2y', '5y', '10y', 'ytd', 'max'])
+# User input for ticker symbols
+ticker_input = st.text_input("Enter ticker symbols to analyze (separated by commas):")
+ticker_frequency = st.selectbox("Select the data frequency:",
+    ['1d', '5d', '1mo', '3mo', '6mo', '1y', '2y', '5y', '10y', 'ytd', 'max'], index=4)
 
-    # Analyze ticker symbols when user inputs data and clicks the button
-    if st.button('Analyze Tickers'):
-        if ticker_input:
+# Analyze ticker symbols when user inputs data and clicks the button
+if st.button('Analyze Tickers'):
+    if ticker_input:
 
-            # Split Ticker Symbols by comma and Loop through each one to grab the data from Yahoo Finance
-            tickerList = ticker_input.split(',')
-            for ticker_symbol in tickerList:
+        # Split Ticker Symbols by comma and Loop through each one to grab the data from Yahoo Finance
+        tickerList = ticker_input.split(',')
 
-                # Strip Whitespace Off Ticker Symbol
-                ticker_symbol = ticker_symbol.strip()
-                try:
-                    ticker = yf.Ticker(ticker_symbol)
-                    ticker_info = ticker.info
-                    ticker_history = ticker.history(period=ticker_frequency)
+        # Create an empty list to store the ticker data
+        tickerData = []
 
-                    # # Formatting data to work with Prophet Forcasting Model
-                    # prophet_df = ticker_history[['Close']]
-                    # prophet_df.reset_index()
-                    # prophet_df.columns = ['ds', 'y']
-                    
-                    # # Building Prophet Model and fitting the data
-                    # prophet = Prophet()
-                    # prophet.fit(prophet_df)
+        # Loop through each ticker symbol and retrieve the data
+        for ticker_symbol in tickerList:
+            
+            # Strip Whitespace Off Ticker Symbol
+            ticker_symbol = ticker_symbol.strip()
 
-                    # # Building Forecast DataFrame
-                    # config_period = 10
-                    # config_freq = "D"
-                    # forecast_df = prophet.make_future_dataframe(periods=config_period, 
-                    #                                             freq=config_freq, 
-                    #                                             include_history=True)
-                    
-                    # Rob - Finish the Prophet Forecasting Model and display the forecast
-                    # Rob - Add forecast components to the streamlit app
-                    
-                    # Show forst 5 rows of data & displays ticker symbol
-                    st.write(f"Ticker symbol: {ticker_symbol}")
-                    st.table(ticker_history.head())
+            # Query Yahoo Finance API for ticker data
+            try:
+                ticker = yf.Ticker(ticker_symbol)
+                ticker_info = ticker.info
+                ticker_name = ticker_info["longName"]
+                ticker_history = ticker.history(period=ticker_frequency)
+                tickerData.append({"ticker_symbol": ticker_symbol, "ticker_info": ticker_info, "ticker_name": ticker_name, "ticker_history": ticker_history})
+            
+            # Handle exceptions from the Yahoo Finance API
+            except Exception as e:
+                st.error(f"Could not retrieve data for ticker symbol: {ticker_symbol}. Error: {e}")
 
-                    # Plot the close data on a line chart
-                    st.line_chart(ticker_history['Close'])
+        # Create tabs
+        tab_titles = ["Stock History", "Stock Prediction", "Research Tool", "Market Trends" ]
+        tabs = st.tabs(tab_titles)
 
-                    # Jamie - Add Candlestick Chart using plotly and streamlit
-                    # Jamie - Add Bollinger Bands using plotly and streamlit
+        # Stock History Tab
+        with tabs[0]:
 
-                    # David - Add MACD Indicator using plotly and streamlit
-                    # David - Add additional tabs into streamlit to show more information
+            for ticker in tickerData:
+                # Rob - Finish the Prophet Forecasting Model and display the forecast
+                # Rob - Add forecast components to the streamlit app
+                
+                # Show forst 5 rows of data & displays ticker symbol
+                st.write(f"Ticker symbol: {ticker["ticker_symbol"]}")
+                st.table(ticker["ticker_history"].head())
 
-                    # Gavin - Add RSI Indicator using plotly and streamlit
-                    # Gavin - Add Correlation Matrix using plotly and streamlit
+                # Plot the close data on a line chart
+                st.line_chart(ticker["ticker_history"]['Close'])
 
-                # Handle exceptions from the Yahoo Finance API
-                except Exception as e:
-                    st.error(f"Could not retrieve data for ticker symbol: {ticker_symbol}. Error: {e}")
+                # Jamie - Add Candlestick Chart using plotly and streamlit
+                # Jamie - Add Bollinger Bands using plotly and streamlit
 
-# Add content to the Research tab
-with tabs[1]:
-    # Create explaination for the Research page
-    st.header("Detailed Ticker Analysis")
-    st.write("In addition to predictions of a stock's closing price, there a lot of factors that need to be considered before investing in any stock. This page allows you to review stock analyst recommendations, numerous financial statements, and relevant news articles.")
-    
-    # User input for ticker symbols
-    research_ticker = st.text_input("Enter ticker symbols to analyze (separated by commas):", key="research")
-    
-    # Analyze ticker symbols when user inputs data and clicks the button
-    if st.button("Research Tickers"):
-        if research_ticker:
+                # David - Add MACD Indicator using plotly and streamlit
+                # David - Add additional tabs into streamlit to show more information
 
-            # Split Ticker Symbols by comma and Loop through each one to grab the data from Yahoo Finance
-            ticker_list = research_ticker.split(',')
-            for research_symbol in ticker_list:
+                # Gavin - Add RSI Indicator using plotly and streamlit
+                # rsi = calculate_rsi(ticker["ticker_history"])
+                # st.write(f"RSI: {rsi}")
+                # fig = plot_rsi(rsi)
+                # st.plotly_chart(fig, use_container_width=True)
+                # Gavin - Add Correlation Matrix using plotly and streamlit
 
-                # Strip Whitespace Off Ticker Symbol
-                research_symbol = research_symbol.strip()
-                try:
-                    ticker_value = yf.Ticker(research_symbol)
-                    ticker_name = ticker_value.info["longName"]
+        with tabs[1]:
+            for ticker in tickerData:
+                # Formatting data to work with Prophet Forcasting Model
+                prophet_df = ticker["ticker_history"][['Close']]
+                prophet_df.reset_index(inplace=True)
+                prophet_df.dropna(inplace=True)
+                prophet_df.columns = ['ds', 'y']
 
-                    # Make header for stock analyst recommendations and call corresponding function
-                    st.header(f"Stock analyst recommendations: {ticker_name}(past 3 months)")
-                    recommend = ticker_value.recommendations
-                    # Use dictionary to rename dataframe with new column names
-                    new_column_names = {
-                        "strongBuy": "Strong Buy",
-                        "buy": "Buy",
-                        "hold": "Hold",
-                        "sell": "Sell",
-                        "strongSell": "Strong Sell"
-                    }
-                    recommend_new = recommend.rename(columns=new_column_names)
-                    recommend_new_t = recommend_new.transpose()
-                    recommend_new_t = recommend_new_t.drop("period", axis=0)
-                    recommend_new_total = recommend_new_t.sum(axis=1)
-                    recommend_new_total = recommend_new_total.reset_index()
-                    recommend_new_total = recommend_new_total.rename(columns=
-                                                                     {"index": "labels",
-                                                                      0 : "values"})
+                # Convert ds column to datetime
+                prophet_df['ds'] = pd.to_datetime(prophet_df['ds'])
 
-                    # Assign the pie chart labels, values, and colors
-                    colors = ["darkgreen", "green", "gold", "red", "darkred"]
-                    pie = go.Pie(labels=recommend_new_total["labels"], values=recommend_new_total["values"], marker=dict(colors=colors))
+                # Remove timezone from prophet_df ds column
+                prophet_df['ds'] = prophet_df['ds'].dt.tz_localize(None)
 
-                    # Create the figure and add the trace
-                    fig = go.Figure(pie)
+                # Building Prophet Model and fitting the data
+                prophet = Prophet()
+                prophet.fit(prophet_df)
 
-                    # Display the pie chart in Streamlit
-                    st.plotly_chart(fig)
+                # Building Forecast DataFrame
+                #config_period = st.slider("Forecast Period", 1, 90, 30)
+                config_period = 30
+                config_freq = "D"
+                forecast_df = prophet.make_future_dataframe(periods=config_period, 
+                                                            freq=config_freq, 
+                                                            include_history=True)
+                prophet_forecast = prophet.predict(forecast_df)
 
-                    # Make header for income statement and call corresponding function
-                    st.header(f"Income statement: {ticker_name}")
-                    income_stmt = ticker_value.income_stmt
-                    # Transpose data frame and create visualization
-                    income_stmt_t = income_stmt.transpose()
-                    st.line_chart(income_stmt_t[["Total Revenue", "Net Income", "Gross Profit", "EBITDA"]])
-                    
-                    # Make header for balance sheet and call corresponding function
-                    st.header(f"Balance sheet: {ticker_name}")
-                    balance_sheet = ticker_value.balance_sheet
-                    # Transpose data frame and create visualization
-                    balance_sheet_t = balance_sheet.transpose()
-                    st.line_chart(balance_sheet_t[["Total Assets", "Total Liabilities Net Minority Interest", "Stockholders Equity", "Long Term Debt"]])
-                    
-                    # Make header for cash flow statement and call corresponding function
-                    st.header(f"Cash flow statement: {ticker_name}")
-                    cashflow = ticker_value.cashflow
-                    # Transpose data frame and create visualization
-                    cashflow_t = cashflow.transpose()
-                    st.line_chart(cashflow_t[["Free Cash Flow", "Operating Cash Flow", "Issuance Of Debt", "Net Income From Continuing Operations"]])
-                    
-                    # Make header for stock ticker news and call corresponding function
-                    st.header(f"Recent news articles mentioning {ticker_name}")
-                    article_list = ticker_value.news
-                    links_and_titles = [(item["link"], item["title"]) for item in article_list]
+                # Display the forecast data
+                fig1 = prophet.plot(prophet_forecast)
+                st.write(fig1)
+                
+                # Use the plot_components function to visualize the forecast components
+                fig = prophet.plot_components(prophet_forecast)
+                st.write(fig)
+                                 
+        # Add content to the Research tab
+        with tabs[2]:
+            # Create explanation for the Research page
+            st.header("Detailed Ticker Analysis")
+            st.write("In addition to predictions of a stock's closing price, there a lot of factors that need to be considered before investing in any stock. This page allows you to review stock analyst recommendations, numerous financial statements, and relevant news articles.")
 
-                    # Display the extracted links and titles
-                    for link, title in links_and_titles:
-                        st.link_button(title, link)
+            # Call function to get data for the Research Tool tab
+            get_research_tool_tab_data(tickerList)
 
-                # Handle exceptions from the Yahoo Finance API
-                except Exception as e:
-                    st.error(f"Could not retrieve data for ticker symbol: {research_symbol}. Error: {e}")
+        # Benchmark Data Tab
+        with tabs[3]:
 
-# Add content to the Benchmark Data tab
-with tabs[2]:
-    # Create explaination for the Market Trends page
-    st.header("General Market Trends")
-    st.write("Buying individual stocks comes with a higher level of risk compared to investing in an index fund, as the performance of the individual company can be more volatile and subject to market fluctuations, company-specific risks, and unforeseen events. While individual stocks offer the potential for higher returns, they also come with the possibility of significant losses, making thorough research an important part of mitigating risk in your investment portfolio.")
-    
-    benchmark_frequency = st.selectbox("Select the data frequency:",
-        ['1d', '5d', '1mo', '3mo', '6mo', '1y', '2y', '5y', '10y', 'ytd', 'max'], key="benchmark_f")
-    benchmark_ticker = ["^DJI", "^IXIC", "^GSPC"]
-    if st.button("Review Benchmarks", key="benchmark_b"):
-        if benchmark_ticker:
+            # Create explaination for the Market Trends page
+            st.header("General Market Trends")
+            st.write("Buying individual stocks comes with a higher level of risk compared to investing in an index fund, as the performance of the individual company can be more volatile and subject to market fluctuations, company-specific risks, and unforeseen events. While individual stocks offer the potential for higher returns, they also come with the possibility of significant losses, making thorough research an important part of mitigating risk in your investment portfolio.")
+
+            # Create a list of the user specified tickers including the Dow Jones Industrial Average, Nasdaq Composite, and S&P 500 
+            benchmark_ticker = ["^DJI", "^IXIC", "^GSPC"]
+
+            # Loop through each benchmark ticker and retrieve the data
             for benchmark_symbol in benchmark_ticker:
                 try:
-                    #benchmark = yf.download("^DJI ^IXIC ^GSPC", period=benchmark_frequency)
                     benchmark = yf.Ticker(benchmark_symbol)
                     benchmark_name = benchmark.info["longName"]
-                    benchmark_history = benchmark.history(period=benchmark_frequency)
-                    st.header(f"Close prices for {benchmark_name}")
-                    st.area_chart(benchmark_history["Close"])
-                    first_close = benchmark_history["Close"].iloc[0]
-                    last_close = benchmark_history["Close"].iloc[-1]
-                    total_return = round(((last_close - first_close) / first_close) * 100, 2)
-                    percent_return = f"{total_return:.2f}%"
-                    st.write(f"<h5>{benchmark_name} saw a {percent_return} return on investment over the past {benchmark_frequency}.</h5>", unsafe_allow_html=True)
+                    benchmark_history = benchmark.history(period=ticker_frequency)
+
+                    tickerData.append({"ticker_symbol": benchmark_symbol, "ticker_info": benchmark.info, "ticker_name": benchmark_name, "ticker_history": benchmark_history})
+                    
                 except Exception as e:
                     st.error(f"Could not retrieve data for ticker symbol: {benchmark_symbol}. Error: {e}")
+
+            # Loop through tickerData and display the total return percentage for each ticker including the Dow Jones Industrial Average, Nasdaq Composite, and S&P 500
+            for ticker in tickerData:
+
+                # Display the close prices for each ticker
+                st.header(f"Close prices for {benchmark_name}")
+                #st.area_chart(ticker["ticker_history"]["Close"])
+                ticker["ticker_history"].dropna(inplace=True)
+                fig = go.Figure(data=[go.Candlestick(x=ticker["ticker_history"].index,
+                                     open=ticker["ticker_history"]['Open'],
+                                     high=ticker["ticker_history"]['High'],
+                                     low=ticker["ticker_history"]['Low'],
+                                     close=ticker["ticker_history"]['Close'])])
+                st.plotly_chart(fig, theme="streamlit")
+
+                # Calculate the percentage return for user specified frequency
+                first_close = ticker["ticker_history"]["Close"].iloc[0]
+                last_close = ticker["ticker_history"]["Close"].iloc[-1]
+                total_return = round(((last_close - first_close) / first_close) * 100, 2)
+                percent_return = f"{total_return:.2f}%"
+
+                # Display the percentage return for each ticker
+                st.write(f"<h5>{ticker["ticker_name"]} saw a {percent_return} return on investment over the past {ticker_frequency}.</h5>", unsafe_allow_html=True)
     
     # Calculate the MACD indicator
     # macd = ta.macd(benchmark_history["Close"])
@@ -225,10 +273,4 @@ with tabs[2]:
     # # Display the chart
     # st.plotly_chart(fig)
 
-                # Gavin - Add RSI Indicator using plotly and streamlit
-                rsi = calculate_rsi(ticker_history)
-                st.write(f"RSI: {rsi}")
-                fig = plot_rsi(rsi)
-                st.plotly_chart(fig, use_container_width=True)
-                # Gavin - Add Correlation Matrix using plotly and streamlit
 
