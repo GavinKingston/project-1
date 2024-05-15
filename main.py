@@ -146,11 +146,11 @@ if st.button('Analyze Tickers'):
                 # Rob - Add forecast components to the streamlit app
                 
                 # Show forst 5 rows of data & displays ticker symbol
-                st.write(f"Ticker symbol: {ticker["ticker_symbol"]}")
-                st.table(ticker["ticker_history"].head())
+                st.write(f"Ticker symbol: {ticker['ticker_symbol']}")
+                st.table(ticker['ticker_history'].head())
 
                 # Plot the close data on a line chart
-                st.line_chart(ticker["ticker_history"]['Close'])
+                st.line_chart(ticker['ticker_history']['Close'])
 
                 # Jamie - Add Candlestick Chart using plotly and streamlit
                 # Jamie - Add Bollinger Bands using plotly and streamlit
@@ -235,7 +235,7 @@ if st.button('Analyze Tickers'):
             for ticker in tickerData:
 
                 # Display the close prices for each ticker
-                st.header(f"Close prices for {benchmark_name}")
+                st.header(f"Close prices for {ticker['ticker_name']}")
                 #st.area_chart(ticker["ticker_history"]["Close"])
                 ticker["ticker_history"].dropna(inplace=True)
                 fig = go.Figure(data=[go.Candlestick(x=ticker["ticker_history"].index,
@@ -252,7 +252,7 @@ if st.button('Analyze Tickers'):
                 percent_return = f"{total_return:.2f}%"
 
                 # Display the percentage return for each ticker
-                st.write(f"<h5>{ticker["ticker_name"]} saw a {percent_return} return on investment over the past {ticker_frequency}.</h5>", unsafe_allow_html=True)
+                st.write(f"<h5>{ticker['ticker_name']} saw a {percent_return} return on investment over the past {ticker_frequency}.</h5>", unsafe_allow_html=True)
     
     # Calculate the MACD indicator
     # macd = ta.macd(benchmark_history["Close"])
