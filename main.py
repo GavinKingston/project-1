@@ -3,24 +3,14 @@ import pandas as pd
 import plotly.graph_objs as go
 from prophet import Prophet
 import streamlit as st
-# import pandas_ta as ta
 
-# def calculate_rsi(data, window=14):
-#     delta = data.diff()
-#     gain = (delta.where(delta > 0, 0)).rolling(window=window).mean()
-#     loss = (-delta.where(delta < 0, 0)).rolling(window=window).mean()
-
-#     rs = gain / loss
-#     rsi = 100 - (100 / (1 + rs))
-#     return rsi
-
-# def plot_rsi(rsi):
-#     fig = go.Figure()
-#     fig.add_trace(go.Scatter(y=rsi, mode='lines', name='RSI'))
-#     fig.update_layout(title='RSI over time',
-#                       yaxis_title='RSI',
-#                       xaxis_title='Date')
-#     return fig
+def calculate_percent_return(ticker):
+    # Calculate the percentage return for user specified frequency
+    first_close = ticker["ticker_history"]["Close"].iloc[-1]
+    last_close = ticker["ticker_history"]["Close"].iloc[0]
+    total_return = round(((last_close - first_close) / first_close) * 100, 2)
+    percent_return = f"{total_return:.2f}%"
+    return percent_return
 
 def get_research_tool_tab_data(ticker_list):
     for research_symbol in ticker_list:
@@ -113,6 +103,9 @@ if st.button('Analyze Tickers'):
         # Split Ticker Symbols by comma and Loop through each one to grab the data from Yahoo Finance
         tickerList = ticker_input.split(',')
 
+        # Remove blank values from tickerList
+        tickerList = [ticker for ticker in tickerList if ticker.strip()]
+
         # Create an empty list to store the ticker data
         tickerData = []
 
@@ -128,11 +121,12 @@ if st.button('Analyze Tickers'):
                 ticker_info = ticker.info
                 ticker_name = ticker_info["longName"]
                 ticker_history = ticker.history(period=ticker_frequency)
-                tickerData.append({"ticker_symbol": ticker_symbol, "ticker_info": ticker_info, "ticker_name": ticker_name, "ticker_history": ticker_history})
+                ticker_history.sort_index(inplace=True, ascending=False)
+                tickerData.append({"ticker_symbol": ticker_symbol, "recommendations": ticker.recommendations, "ticker_info": ticker_info, "ticker_name": ticker_name, "ticker_history": ticker_history})
             
             # Handle exceptions from the Yahoo Finance API
             except Exception as e:
-                st.error(f"Could not retrieve data for ticker symbol: {ticker_symbol}. Error: {e}")
+                st.error(f"Could not retrieve data for ticker symbol: {ticker_symbol}.")
 
         # Create tabs
         tab_titles = ["Stock History", "Stock Prediction", "Research Tool", "Market Trends" ]
@@ -140,30 +134,20 @@ if st.button('Analyze Tickers'):
 
         # Stock History Tab
         with tabs[0]:
-
             for ticker in tickerData:
-                # Rob - Finish the Prophet Forecasting Model and display the forecast
-                # Rob - Add forecast components to the streamlit app
-                
                 # Show forst 5 rows of data & displays ticker symbol
-                st.write(f"Ticker symbol: {ticker['ticker_symbol']}")
+                st.header(f"Ticker symbol: {ticker['ticker_symbol']}")
+                st.subheader(f"Last 5 days of price data for {ticker['ticker_name']}")
                 st.table(ticker['ticker_history'].head())
 
+                st.subheader(f"Closing Price for {ticker['ticker_name']} over the past {ticker_frequency}")
                 # Plot the close data on a line chart
-                st.line_chart(ticker['ticker_history']['Close'])
-
-                # Jamie - Add Candlestick Chart using plotly and streamlit
-                # Jamie - Add Bollinger Bands using plotly and streamlit
-
-                # David - Add MACD Indicator using plotly and streamlit
-                # David - Add additional tabs into streamlit to show more information
-
-                # Gavin - Add RSI Indicator using plotly and streamlit
-                # rsi = calculate_rsi(ticker["ticker_history"])
-                # st.write(f"RSI: {rsi}")
-                # fig = plot_rsi(rsi)
-                # st.plotly_chart(fig, use_container_width=True)
-                # Gavin - Add Correlation Matrix using plotly and streamlit
+                line_chart_data = ticker['ticker_history']['Close'].copy().reset_index()
+                line_chart_data.columns = ['Date', 'Close Price']
+                st.line_chart(line_chart_data, x="Date", y="Close Price")
+                # Calculate the percentage return for each ticker and display it
+                percent_return = calculate_percent_return(ticker)
+                st.write(f"<h5>{ticker['ticker_name']} saw a {percent_return} return on investment over the past {ticker_frequency}.</h5>", unsafe_allow_html=True)
 
         with tabs[1]:
             for ticker in tickerData:
@@ -185,7 +169,7 @@ if st.button('Analyze Tickers'):
 
                 # Building Forecast DataFrame
                 #config_period = st.slider("Forecast Period", 1, 90, 30)
-                config_period = 30
+                config_period = 90
                 config_freq = "D"
                 forecast_df = prophet.make_future_dataframe(periods=config_period, 
                                                             freq=config_freq, 
@@ -193,11 +177,17 @@ if st.button('Analyze Tickers'):
                 prophet_forecast = prophet.predict(forecast_df)
 
                 # Display the forecast data
-                fig1 = prophet.plot(prophet_forecast)
+                fig1 = prophet.plot(prophet_forecast, xlabel='Date', ylabel='Close Price')
+                fig1.suptitle(f"{ticker['ticker_name']} Forecast", fontsize=20)
+                fig1.tight_layout()
                 st.write(fig1)
                 
                 # Use the plot_components function to visualize the forecast components
                 fig = prophet.plot_components(prophet_forecast)
+                fig.tight_layout()
+                fig.subplots_adjust(top=0.9)
+                fig.suptitle(f"{ticker['ticker_name']} Forecast Components", fontsize=20)
+                fig.get_children()[1].set_xlabel('Date')
                 st.write(fig)
                                  
         # Add content to the Research tab
@@ -218,21 +208,21 @@ if st.button('Analyze Tickers'):
 
             # Create a list of the user specified tickers including the Dow Jones Industrial Average, Nasdaq Composite, and S&P 500 
             benchmark_ticker = ["^DJI", "^IXIC", "^GSPC"]
-
+            benchmark_ticker_data = []
             # Loop through each benchmark ticker and retrieve the data
             for benchmark_symbol in benchmark_ticker:
                 try:
+                    # Query Yahoo Finance API for benchmark data of Dow Jones Industrial Average, Nasdaq Composite, and S&P 500
                     benchmark = yf.Ticker(benchmark_symbol)
                     benchmark_name = benchmark.info["longName"]
                     benchmark_history = benchmark.history(period=ticker_frequency)
-
-                    tickerData.append({"ticker_symbol": benchmark_symbol, "ticker_info": benchmark.info, "ticker_name": benchmark_name, "ticker_history": benchmark_history})
+                    benchmark_history.sort_index(inplace=True, ascending=False)
+                    benchmark_ticker_data.append({"ticker_symbol": benchmark_symbol, "ticker_info": benchmark.info, "ticker_name": benchmark_name, "ticker_history": benchmark_history})
                     
                 except Exception as e:
                     st.error(f"Could not retrieve data for ticker symbol: {benchmark_symbol}. Error: {e}")
-
             # Loop through tickerData and display the total return percentage for each ticker including the Dow Jones Industrial Average, Nasdaq Composite, and S&P 500
-            for ticker in tickerData:
+            for ticker in benchmark_ticker_data:
 
                 # Display the close prices for each ticker
                 st.header(f"Close prices for {ticker['ticker_name']}")
@@ -245,13 +235,8 @@ if st.button('Analyze Tickers'):
                                      close=ticker["ticker_history"]['Close'])])
                 st.plotly_chart(fig, theme="streamlit")
 
-                # Calculate the percentage return for user specified frequency
-                first_close = ticker["ticker_history"]["Close"].iloc[0]
-                last_close = ticker["ticker_history"]["Close"].iloc[-1]
-                total_return = round(((last_close - first_close) / first_close) * 100, 2)
-                percent_return = f"{total_return:.2f}%"
-
-                # Display the percentage return for each ticker
+                # Calculate the percentage return for each ticker and display it
+                percent_return = calculate_percent_return(ticker)
                 st.write(f"<h5>{ticker['ticker_name']} saw a {percent_return} return on investment over the past {ticker_frequency}.</h5>", unsafe_allow_html=True)
     
     # Calculate the MACD indicator
