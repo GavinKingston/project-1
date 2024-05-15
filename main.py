@@ -103,6 +103,9 @@ if st.button('Analyze Tickers'):
         # Split Ticker Symbols by comma and Loop through each one to grab the data from Yahoo Finance
         tickerList = ticker_input.split(',')
 
+        # Remove blank values from tickerList
+        tickerList = [ticker for ticker in tickerList if ticker.strip()]
+
         # Create an empty list to store the ticker data
         tickerData = []
 
@@ -123,7 +126,7 @@ if st.button('Analyze Tickers'):
             
             # Handle exceptions from the Yahoo Finance API
             except Exception as e:
-                st.error(f"Could not retrieve data for ticker symbol: {ticker_symbol}. Error: {e}")
+                st.error(f"Could not retrieve data for ticker symbol: {ticker_symbol}.")
 
         # Create tabs
         tab_titles = ["Stock History", "Stock Prediction", "Research Tool", "Market Trends" ]
