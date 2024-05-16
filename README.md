@@ -1,4 +1,4 @@
-# Stock Exploration Tool
+# MarketMatrix Pro - A Stock Exploration Tool
 
 **Contributors:** 
 * Gavin Kingston
@@ -7,7 +7,7 @@
 * Jaime Portillo 
 
 ### Summary
-This tool will take in a user input with a ticker symbol of a stock and it will gather as much data on that symbol as possible of all closing prices based on a user provided frequency. It will then provide predictions on what the next best trade will be in the same frequency
+This tool will take in a user input with a comma delimited list of ticker symbols of stock market or crypto tickers and it will gather as much data on that symbol as possible of all closing prices based on a user provided frequency. It will then provide predictions on what the next best trade will be in the same frequency
 
 ### Questions
 * What is the best time to buy, and what is the best time to sell
@@ -26,3 +26,10 @@ This tool will take in a user input with a ticker symbol of a stock and it will 
 ```
 pip install -r requirements.txt && streamlit run main.py
 ```
+
+** Note: If you run into an error saying that the streamlit.cli is an unknown command. A workaround is to run the following to reinstall the streamlit module**
+```
+pip uninstall streamlit
+pip install streamlit
+```
+
