@@ -3,6 +3,7 @@ import pandas as pd
 import plotly.graph_objs as go
 from prophet import Prophet
 import streamlit as st
+import json
 
 def calculate_percent_return(ticker):
     # Calculate the percentage return for user specified frequency
@@ -12,78 +13,64 @@ def calculate_percent_return(ticker):
     percent_return = f"{total_return:.2f}%"
     return percent_return
 
-def get_research_tool_tab_data(ticker_list):
-    for research_symbol in ticker_list:
+def get_research_tool_tab_data(tickerData):
+    for ticker in tickerData:
 
-        # Strip Whitespace Off Ticker Symbol
-        research_symbol = research_symbol.strip()
-        try:
-            ticker_value = yf.Ticker(research_symbol)
-            ticker_name = ticker_value.info["longName"]
+        # Make header for stock analyst recommendations and call corresponding function
+        st.header(f"Stock analyst recommendations for {ticker['ticker_name']}")
 
-            # Make header for stock analyst recommendations and call corresponding function
-            st.header(f"Stock analyst recommendations: {ticker_name}(past 3 months)")
-            recommend = ticker_value.recommendations
-            # Use dictionary to rename dataframe with new column names
-            new_column_names = {
-                "strongBuy": "Strong Buy",
-                "buy": "Buy",
-                "hold": "Hold",
-                "sell": "Sell",
-                "strongSell": "Strong Sell"
-            }
-            recommend_new = recommend.rename(columns=new_column_names)
-            recommend_new_t = recommend_new.transpose()
-            recommend_new_t = recommend_new_t.drop("period", axis=0)
-            recommend_new_total = recommend_new_t.sum(axis=1)
-            recommend_new_total = recommend_new_total.reset_index()
-            recommend_new_total = recommend_new_total.rename(columns=
-                                                                {"index": "labels",
-                                                                0 : "values"})
+        # Use dictionary to rename dataframe with new column names
+        new_column_names = {
+            "strongBuy": "Strong Buy",
+            "buy": "Buy",
+            "hold": "Hold",
+            "sell": "Sell",
+            "strongSell": "Strong Sell"
+        }
+        recommend_new = ticker["recommendations"].rename(columns=new_column_names)
+        recommend_new_t = recommend_new.transpose()
+        recommend_new_t = recommend_new_t.drop("period", axis=0)
+        recommend_new_total = recommend_new_t.sum(axis=1)
+        recommend_new_total = recommend_new_total.reset_index()
+        recommend_new_total = recommend_new_total.rename(columns=
+                                                            {"index": "labels",
+                                                            0 : "values"})
 
-            # Assign the pie chart labels, values, and colors
-            colors = ["darkgreen", "green", "gold", "red", "darkred"]
-            pie = go.Pie(labels=recommend_new_total["labels"], values=recommend_new_total["values"], marker=dict(colors=colors))
+        # Assign the pie chart labels, values, and colors
+        colors = ["darkgreen", "green", "gold", "red", "darkred"]
+        pie = go.Pie(labels=recommend_new_total["labels"], values=recommend_new_total["values"], marker=dict(colors=colors))
 
-            # Create the figure and add the trace
-            fig = go.Figure(pie)
+        # Create the figure and add the trace
+        fig = go.Figure(pie)
 
-            # Display the pie chart in Streamlit
-            st.plotly_chart(fig)
+        # Display the pie chart in Streamlit
+        st.plotly_chart(fig)
 
-            # Make header for income statement and call corresponding function
-            st.header(f"Income statement: {ticker_name}")
-            income_stmt = ticker_value.income_stmt
-            # Transpose data frame and create visualization
-            income_stmt_t = income_stmt.transpose()
-            st.line_chart(income_stmt_t[["Total Revenue", "Net Income", "Gross Profit", "EBITDA"]])
-            
-            # Make header for balance sheet and call corresponding function
-            st.header(f"Balance sheet: {ticker_name}")
-            balance_sheet = ticker_value.balance_sheet
-            # Transpose data frame and create visualization
-            balance_sheet_t = balance_sheet.transpose()
-            st.line_chart(balance_sheet_t[["Total Assets", "Total Liabilities Net Minority Interest", "Stockholders Equity", "Long Term Debt"]])
-            
-            # Make header for cash flow statement and call corresponding function
-            st.header(f"Cash flow statement: {ticker_name}")
-            cashflow = ticker_value.cashflow
-            # Transpose data frame and create visualization
-            cashflow_t = cashflow.transpose()
-            st.line_chart(cashflow_t[["Free Cash Flow", "Operating Cash Flow", "Issuance Of Debt", "Net Income From Continuing Operations"]])
-            
-            # Make header for stock ticker news and call corresponding function
-            st.header(f"Recent news articles mentioning {ticker_name}")
-            article_list = ticker_value.news
-            links_and_titles = [(item["link"], item["title"]) for item in article_list]
+        # Make header for income statement and call corresponding function
+        st.header(f"Income statement: {ticker['ticker_name']}")
+        
+        # Transpose data frame and create visualization
+        st.line_chart(ticker['income_stmt'].transpose()[["Total Revenue", "Net Income", "Gross Profit", "EBITDA"]])
+        
+        # Make header for balance sheet and call corresponding function
+        st.header(f"Balance sheet: {ticker['ticker_name']}")
+        
+        # Transpose data frame and create visualization
+        st.line_chart(ticker['balance_sheet'].transpose()[["Total Assets", "Total Liabilities Net Minority Interest", "Stockholders Equity", "Long Term Debt"]])
+        
+        # Make header for cash flow statement and call corresponding function
+        st.header(f"Cash flow statement: {ticker['ticker_name']}")
+        
+        # Transpose data frame and create visualization
+        st.line_chart(ticker['cashflow'].transpose()[["Free Cash Flow", "Operating Cash Flow", "Issuance Of Debt", "Net Income From Continuing Operations"]])
+        
+        # Make header for stock ticker news and call corresponding function
+        st.header(f"Recent news articles mentioning {ticker['ticker_name']}")
+        
+        # Loop through each news article and display the title and link
+        for item in ticker['news']:
+            st.link_button(item['title'], item['link'])
 
-            # Display the extracted links and titles
-            for link, title in links_and_titles:
-                st.link_button(title, link)
-
-        # Handle exceptions from the Yahoo Finance API
-        except Exception as e:
-            st.error(f"Could not retrieve data for ticker symbol: {research_symbol}. Error: {e}")
 
 
 # Set page title and subheader
@@ -122,7 +109,17 @@ if st.button('Analyze Tickers'):
                 ticker_name = ticker_info["longName"]
                 ticker_history = ticker.history(period=ticker_frequency)
                 ticker_history.sort_index(inplace=True, ascending=False)
-                tickerData.append({"ticker_symbol": ticker_symbol, "recommendations": ticker.recommendations, "ticker_info": ticker_info, "ticker_name": ticker_name, "ticker_history": ticker_history})
+
+                # Append the data to the tickerData list
+                tickerData.append({"ticker_symbol": ticker_symbol, 
+                                   "recommendations": ticker.recommendations, 
+                                   "ticker_info": ticker_info, 
+                                   "ticker_name": ticker_name, 
+                                   "ticker_history": ticker_history,
+                                   "income_stmt": ticker.income_stmt,
+                                   "balance_sheet": ticker.balance_sheet,
+                                   "cashflow": ticker.cashflow,
+                                   "news": ticker.news})
             
             # Handle exceptions from the Yahoo Finance API
             except Exception as e:
@@ -197,7 +194,7 @@ if st.button('Analyze Tickers'):
             st.write("In addition to predictions of a stock's closing price, there a lot of factors that need to be considered before investing in any stock. This page allows you to review stock analyst recommendations, numerous financial statements, and relevant news articles.")
 
             # Call function to get data for the Research Tool tab
-            get_research_tool_tab_data(tickerList)
+            get_research_tool_tab_data(tickerData)
 
         # Benchmark Data Tab
         with tabs[3]:
