@@ -1,4 +1,4 @@
-# Stock Exploration Tool
+# MarketMatrix Pro - A Stock Exploration Tool
 
 **Contributors:** 
 * Gavin Kingston
