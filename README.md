@@ -33,3 +33,14 @@ pip uninstall streamlit
 pip install streamlit
 ```
 
+### Application in Action
+![GIF demo](img/market_matrix_pro.gif)
+
+### Summary and Results
+* The best time (day, week, month) to buy a specific stock is going to be different depending on the range and stock you are evaluating. We can see the differences between Google and Microsoft's trends below.
+![Google Prediction](img/google_predict.png)
+![Microsoft Prediction](img/microsoft_predict.png)
+
+* The tool is likely better suited for a user who has a strong understanding of stock market analysis and knows what factors to consider. Just because the predictive model shows a stock with a downward trend doesn't mean that company is going out of business; it may actually be an indicator to buy.
+* The tool does allow us to dynamically answer our original questions about the best time to buy or sell, tracking historical changes, and predicting future changes, but it is best used as a short-term research tool due to limitations with the accuracy of the predictive model over the long-term.
+
